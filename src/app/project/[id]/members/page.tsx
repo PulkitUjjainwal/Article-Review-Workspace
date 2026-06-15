@@ -90,6 +90,16 @@ export default function ProjectMembersPage() {
     },
   });
 
+  const resendInvitation = api.member.resendInvitation.useMutation({
+    onSuccess: () => {
+      toast.success("Invitation resent successfully!");
+      refetchInvitations();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail) return;
@@ -222,14 +232,26 @@ export default function ProjectMembersPage() {
                     </div>
                   </div>
                   {canManageMembers && (
-                    <Button
-                      onClick={() => cancelInvitation.mutate({ invitationId: invitation.id })}
-                      variant="danger"
-                      size="sm"
-                      isLoading={cancelInvitation.isPending}
-                    >
-                      Cancel
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => resendInvitation.mutate({ invitationId: invitation.id })}
+                        variant="secondary"
+                        size="sm"
+                        isLoading={resendInvitation.isPending}
+                        title="Resend invitation email"
+                      >
+                        📧 Resend
+                      </Button>
+                      <Button
+                        onClick={() => cancelInvitation.mutate({ invitationId: invitation.id })}
+                        variant="danger"
+                        size="sm"
+                        isLoading={cancelInvitation.isPending}
+                        title="Cancel invitation"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}

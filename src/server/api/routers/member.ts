@@ -430,4 +430,80 @@ export const memberRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  // Resend invitation
+  resendInvitation: protectedProcedure
+    .input(z.object({ invitationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Get invitation
+      const invitation = await ctx.db.projectInvitation.findUnique({
+        where: { id: input.invitationId },
+        include: {
+          project: true,
+        },
+      });
+
+      if (!invitation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invitation not found",
+        });
+      }
+
+      // Check if already accepted
+      if (invitation.acceptedAt) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "This invitation has already been accepted",
+        });
+      }
+
+      // Check if user has permission
+      const membership = await ctx.db.projectMember.findFirst({
+        where: {
+          projectId: invitation.projectId,
+          userId: ctx.session.user.id,
+          role: { in: ["OWNER", "ADMIN"] },
+        },
+      });
+
+      if (!membership) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only project owners and admins can resend invitations",
+        });
+      }
+
+      // Generate new invitation URL
+      const baseUrl = getBaseUrl();
+      const inviteUrl = `${baseUrl}/invite/${invitation.token}`;
+      console.log('[Resend Invitation] Base URL:', baseUrl);
+      console.log('[Resend Invitation] Invite URL:', inviteUrl);
+
+      // Send email
+      try {
+        await sendProjectInvitation({
+          to: invitation.email,
+          projectName: invitation.project.name,
+          inviterName: ctx.session.user.name || ctx.session.user.email || "A team member",
+          inviteUrl,
+        });
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to resend invitation email. Please try again.",
+        });
+      }
+
+      // Optionally extend expiration date when resending
+      const newExpiresAt = new Date();
+      newExpiresAt.setDate(newExpiresAt.getDate() + 7);
+
+      await ctx.db.projectInvitation.update({
+        where: { id: invitation.id },
+        data: { expiresAt: newExpiresAt },
+      });
+
+      return { success: true, message: "Invitation resent successfully" };
+    }),
 });
