@@ -8,6 +8,12 @@ export interface SendInvitationEmailParams {
   hasAccount?: boolean;
 }
 
+export interface SendPasswordResetEmailParams {
+  to: string;
+  resetUrl: string;
+  userName?: string;
+}
+
 // Create SES client (initialized lazily to ensure env vars are loaded)
 function getSESClient() {
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
@@ -168,6 +174,153 @@ Article Review Workspace - Systematic Literature Review Platform
     });
 
     // Provide helpful error messages
+    if (error.code === 'MessageRejected') {
+      throw new Error('Email rejected. Please verify the sender email address is verified in AWS SES.');
+    } else if (error.code === 'InvalidParameterValue') {
+      throw new Error(`Invalid email parameter: ${error.message}`);
+    } else if (error.code === 'CredentialsError' || error.name === 'CredentialsProviderError') {
+      throw new Error('AWS credentials are invalid or expired.');
+    }
+
+    throw new Error(`Email service error: ${error.message || 'Unknown error occurred'}`);
+  }
+}
+
+export async function sendPasswordResetEmail({
+  to,
+  resetUrl,
+  userName,
+}: SendPasswordResetEmailParams) {
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    console.error('AWS credentials are not configured');
+    throw new Error('Email service is not configured. Please add AWS credentials to your environment variables.');
+  }
+
+  if (!process.env.AWS_SES_SENDER) {
+    console.error('AWS_SES_SENDER is not configured');
+    throw new Error('Email sender address is not configured.');
+  }
+
+  try {
+    console.log('Sending password reset email to:', to);
+    console.log('Reset URL:', resetUrl);
+
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Password Reset</h1>
+          </div>
+
+          <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              ${userName ? `Hi ${userName},` : 'Hi there,'}
+            </p>
+
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              We received a request to reset your password for your Article Review Workspace account.
+            </p>
+
+            <p style="font-size: 16px; margin-bottom: 30px;">
+              Click the button below to reset your password:
+            </p>
+
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${resetUrl}"
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 14px 40px;
+                        text-decoration: none;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        font-size: 16px;
+                        display: inline-block;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                Reset Password
+              </a>
+            </div>
+
+            <p style="font-size: 14px; color: #6b7280; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              Or copy and paste this link into your browser:<br>
+              <a href="${resetUrl}" style="color: #667eea; word-break: break-all;">${resetUrl}</a>
+            </p>
+
+            <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+              This password reset link will expire in 1 hour.
+            </p>
+
+            <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+              If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #9ca3af;">
+            <p>Article Review Workspace - Systematic Literature Review Platform</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textBody = `
+Password Reset
+
+${userName ? `Hi ${userName},` : 'Hi there,'}
+
+We received a request to reset your password for your Article Review Workspace account.
+
+Reset your password by visiting this link:
+${resetUrl}
+
+This password reset link will expire in 1 hour.
+
+If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+
+---
+Article Review Workspace - Systematic Literature Review Platform
+    `;
+
+    const command = new SendEmailCommand({
+      Source: process.env.AWS_SES_SENDER,
+      Destination: {
+        ToAddresses: [to],
+      },
+      Message: {
+        Subject: {
+          Data: 'Reset Your Password - Article Review Workspace',
+          Charset: 'UTF-8',
+        },
+        Body: {
+          Html: {
+            Data: htmlBody,
+            Charset: 'UTF-8',
+          },
+          Text: {
+            Data: textBody,
+            Charset: 'UTF-8',
+          },
+        },
+      },
+    });
+
+    const sesClient = getSESClient();
+    const response = await sesClient.send(command);
+
+    console.log('Password reset email sent successfully via AWS SES:', response.MessageId);
+    return { id: response.MessageId };
+  } catch (error: any) {
+    console.error('Error sending password reset email via AWS SES:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      statusCode: error.statusCode,
+      name: error.name,
+    });
+
     if (error.code === 'MessageRejected') {
       throw new Error('Email rejected. Please verify the sender email address is verified in AWS SES.');
     } else if (error.code === 'InvalidParameterValue') {

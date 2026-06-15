@@ -2,6 +2,9 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { hashPassword, validatePassword, validateEmail } from "~/lib/auth";
+import { sendPasswordResetEmail } from "~/lib/email";
+import { getBaseUrl } from "~/lib/getBaseUrl";
+import crypto from "crypto";
 
 export const authRouter = createTRPCRouter({
   // Register new user
@@ -79,5 +82,144 @@ export const authRouter = createTRPCRouter({
       });
 
       return { exists: !!user };
+    }),
+
+  // Request password reset
+  forgotPassword: publicProcedure
+    .input(z.object({ email: z.string().email() }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if user exists
+      const user = await ctx.db.user.findUnique({
+        where: { email: input.email },
+        select: { id: true, name: true, email: true, password: true },
+      });
+
+      // Always return success to prevent email enumeration
+      // But only send email if user exists and has a password (not OAuth-only)
+      if (user && user.password) {
+        // Generate secure random token
+        const token = crypto.randomBytes(32).toString("hex");
+
+        // Set expiration to 1 hour from now
+        const expires = new Date(Date.now() + 60 * 60 * 1000);
+
+        // Create password reset token
+        await ctx.db.passwordResetToken.create({
+          data: {
+            email: input.email,
+            token,
+            expires,
+          },
+        });
+
+        // Get base URL (handles dev, staging, production automatically)
+        const baseUrl = getBaseUrl();
+        const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
+
+        console.log('[Password Reset] Base URL:', baseUrl);
+        console.log('[Password Reset] Reset URL:', resetUrl);
+
+        // Send password reset email
+        try {
+          await sendPasswordResetEmail({
+            to: input.email,
+            resetUrl,
+            userName: user.name || undefined,
+          });
+        } catch (error) {
+          console.error("Failed to send password reset email:", error);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to send password reset email. Please try again later.",
+          });
+        }
+      }
+
+      return {
+        success: true,
+        message: "If an account exists with this email, you will receive a password reset link.",
+      };
+    }),
+
+  // Reset password
+  resetPassword: publicProcedure
+    .input(
+      z.object({
+        token: z.string(),
+        newPassword: z.string().min(8, "Password must be at least 8 characters"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Validate password
+      const passwordValidation = validatePassword(input.newPassword);
+      if (!passwordValidation.valid) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: passwordValidation.error,
+        });
+      }
+
+      // Find reset token
+      const resetToken = await ctx.db.passwordResetToken.findUnique({
+        where: { token: input.token },
+      });
+
+      if (!resetToken) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid or expired reset token",
+        });
+      }
+
+      // Check if token has been used
+      if (resetToken.used) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This reset link has already been used",
+        });
+      }
+
+      // Check if token is expired
+      if (resetToken.expires < new Date()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This reset link has expired. Please request a new one.",
+        });
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(input.newPassword);
+
+      // Update user password and mark token as used
+      await ctx.db.$transaction([
+        ctx.db.user.update({
+          where: { email: resetToken.email },
+          data: { password: hashedPassword },
+        }),
+        ctx.db.passwordResetToken.update({
+          where: { token: input.token },
+          data: { used: true },
+        }),
+      ]);
+
+      return {
+        success: true,
+        message: "Password has been reset successfully. You can now sign in with your new password.",
+      };
+    }),
+
+  // Verify reset token
+  verifyResetToken: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const resetToken = await ctx.db.passwordResetToken.findUnique({
+        where: { token: input.token },
+      });
+
+      if (!resetToken || resetToken.used || resetToken.expires < new Date()) {
+        return { valid: false };
+      }
+
+      return { valid: true, email: resetToken.email };
     }),
 });
