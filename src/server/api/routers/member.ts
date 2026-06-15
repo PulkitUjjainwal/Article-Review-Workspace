@@ -177,6 +177,8 @@ export const memberRouter = createTRPCRouter({
       // Send invitation email
       const baseUrl = getBaseUrl();
       const inviteUrl = `${baseUrl}/invite/${token}`;
+      console.log('[Invitation] Base URL:', baseUrl);
+      console.log('[Invitation] Full invite URL:', inviteUrl);
 
       try {
         await sendProjectInvitation({
