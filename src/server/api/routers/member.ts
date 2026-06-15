@@ -162,6 +162,11 @@ export const memberRouter = createTRPCRouter({
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
 
+      // Check if user already has an account
+      const invitedUser = await ctx.db.user.findUnique({
+        where: { email: input.email },
+      });
+
       // Create invitation
       const invitation = await ctx.db.projectInvitation.create({
         data: {
@@ -179,16 +184,29 @@ export const memberRouter = createTRPCRouter({
       const inviteUrl = `${baseUrl}/invite/${token}`;
       console.log('[Invitation] Base URL:', baseUrl);
       console.log('[Invitation] Full invite URL:', inviteUrl);
+      console.log('[Invitation] User has account:', !!invitedUser);
 
+      // Always send email, but message differs based on whether user exists
       try {
         await sendProjectInvitation({
           to: input.email,
           projectName: project.name,
           inviterName: ctx.session.user.name || ctx.session.user.email || "A team member",
           inviteUrl,
+          hasAccount: !!invitedUser,
         });
       } catch (error) {
-        // Delete invitation if email fails
+        // If email fails but user has account, that's OK - they'll see it in dashboard
+        if (invitedUser) {
+          console.warn('[Invitation] Email failed but user has account, will see in dashboard');
+          return {
+            success: true,
+            invitation,
+            message: "Invitation created! The user will see it when they log in.",
+          };
+        }
+
+        // If email fails and user doesn't have account, delete invitation
         await ctx.db.projectInvitation.delete({
           where: { id: invitation.id },
         });
@@ -199,7 +217,13 @@ export const memberRouter = createTRPCRouter({
         });
       }
 
-      return { success: true, invitation };
+      return {
+        success: true,
+        invitation,
+        message: invitedUser
+          ? "Invitation sent! The user will also see it in their dashboard when they log in."
+          : "Invitation sent! The user will receive an email.",
+      };
     }),
 
   // Get invitation details (public - no auth required, for showing which email was invited)
@@ -529,5 +553,156 @@ export const memberRouter = createTRPCRouter({
       });
 
       return { success: true, message: "Invitation resent successfully" };
+    }),
+
+  // Get pending invitations for current user's email
+  myPendingInvitations: protectedProcedure.query(async ({ ctx }) => {
+    const invitations = await ctx.db.projectInvitation.findMany({
+      where: {
+        email: ctx.session.user.email!,
+        acceptedAt: null, // Not yet accepted
+        expiresAt: {
+          gte: new Date(), // Not expired
+        },
+      },
+      include: {
+        project: {
+          include: {
+            organization: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        invitedByUser: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return invitations;
+  }),
+
+  // Accept invitation from dashboard (by invitation ID)
+  acceptInvitationDashboard: protectedProcedure
+    .input(z.object({ invitationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const invitation = await ctx.db.projectInvitation.findUnique({
+        where: { id: input.invitationId },
+        include: {
+          project: true,
+        },
+      });
+
+      if (!invitation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invitation not found",
+        });
+      }
+
+      // Check if already accepted
+      if (invitation.acceptedAt) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "This invitation has already been accepted",
+        });
+      }
+
+      // Check if expired
+      if (new Date() > invitation.expiresAt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This invitation has expired",
+        });
+      }
+
+      // Check if user's email matches invitation
+      if (ctx.session.user.email !== invitation.email) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "This invitation is for a different email address",
+        });
+      }
+
+      // Check if already a member
+      const existingMember = await ctx.db.projectMember.findFirst({
+        where: {
+          projectId: invitation.projectId,
+          userId: ctx.session.user.id,
+        },
+      });
+
+      if (existingMember) {
+        // Mark as accepted anyway and return success
+        await ctx.db.projectInvitation.update({
+          where: { id: invitation.id },
+          data: { acceptedAt: new Date() },
+        });
+
+        return {
+          success: true,
+          project: invitation.project,
+          message: "You are already a member of this project",
+        };
+      }
+
+      // Add user to project
+      await ctx.db.projectMember.create({
+        data: {
+          projectId: invitation.projectId,
+          userId: ctx.session.user.id,
+          role: invitation.role,
+        },
+      });
+
+      // Mark invitation as accepted
+      await ctx.db.projectInvitation.update({
+        where: { id: invitation.id },
+        data: { acceptedAt: new Date() },
+      });
+
+      return {
+        success: true,
+        project: invitation.project,
+      };
+    }),
+
+  // Decline invitation
+  declineInvitation: protectedProcedure
+    .input(z.object({ invitationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const invitation = await ctx.db.projectInvitation.findUnique({
+        where: { id: input.invitationId },
+      });
+
+      if (!invitation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invitation not found",
+        });
+      }
+
+      // Check if user's email matches invitation
+      if (ctx.session.user.email !== invitation.email) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "This invitation is for a different email address",
+        });
+      }
+
+      // Delete the invitation
+      await ctx.db.projectInvitation.delete({
+        where: { id: input.invitationId },
+      });
+
+      return { success: true };
     }),
 });

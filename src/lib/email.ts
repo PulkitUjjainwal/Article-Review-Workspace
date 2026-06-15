@@ -5,6 +5,7 @@ export interface SendInvitationEmailParams {
   projectName: string;
   inviterName: string;
   inviteUrl: string;
+  hasAccount?: boolean;
 }
 
 // Create SES client (initialized lazily to ensure env vars are loaded)
@@ -31,6 +32,7 @@ export async function sendProjectInvitation({
   projectName,
   inviterName,
   inviteUrl,
+  hasAccount = false,
 }: SendInvitationEmailParams) {
   // Check if AWS credentials are configured
   if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
@@ -75,7 +77,9 @@ export async function sendProjectInvitation({
             </p>
 
             <p style="font-size: 16px; margin-bottom: 30px;">
-              Click the button below to accept the invitation and start reviewing articles:
+              ${hasAccount
+                ? 'Log in to your account to see this invitation and accept it from your dashboard. Or click the button below:'
+                : 'Click the button below to accept the invitation and start reviewing articles:'}
             </p>
 
             <div style="text-align: center; margin: 40px 0;">

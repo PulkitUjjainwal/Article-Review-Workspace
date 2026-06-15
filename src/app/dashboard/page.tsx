@@ -9,6 +9,7 @@ import { WelcomeTour } from "~/components/WelcomeTour";
 import { Button } from "~/components/ui/Button";
 import { LoadingSpinner } from "~/components/ui/LoadingSpinner";
 import { EmptyState } from "~/components/ui/EmptyState";
+import { PendingInvitations } from "~/components/PendingInvitations";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -79,6 +80,9 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Pending Invitations */}
+        <PendingInvitations />
+
         <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
