@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { sendProjectInvitation } from "~/lib/email";
+import { getBaseUrl } from "~/lib/getBaseUrl";
 import crypto from "crypto";
 
 export const memberRouter = createTRPCRouter({
@@ -174,7 +175,8 @@ export const memberRouter = createTRPCRouter({
       });
 
       // Send invitation email
-      const inviteUrl = `${process.env.NEXTAUTH_URL}/invite/${token}`;
+      const baseUrl = getBaseUrl();
+      const inviteUrl = `${baseUrl}/invite/${token}`;
 
       try {
         await sendProjectInvitation({
