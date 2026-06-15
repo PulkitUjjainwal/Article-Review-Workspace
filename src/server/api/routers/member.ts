@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { sendProjectInvitation } from "~/lib/email";
 import { getBaseUrl } from "~/lib/getBaseUrl";
@@ -200,6 +200,30 @@ export const memberRouter = createTRPCRouter({
       }
 
       return { success: true, invitation };
+    }),
+
+  // Get invitation details (public - no auth required, for showing which email was invited)
+  getInvitationDetails: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const invitation = await ctx.db.projectInvitation.findUnique({
+        where: { token: input.token },
+        select: {
+          email: true,
+          expiresAt: true,
+          acceptedAt: true,
+        },
+      });
+
+      if (!invitation) {
+        return { email: null };
+      }
+
+      return {
+        email: invitation.email,
+        expired: new Date() > invitation.expiresAt,
+        accepted: !!invitation.acceptedAt,
+      };
     }),
 
   // Accept invitation (by token)
