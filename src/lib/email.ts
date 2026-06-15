@@ -1,0 +1,220 @@
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+
+export interface SendInvitationEmailParams {
+  to: string;
+  projectName: string;
+  inviterName: string;
+  inviteUrl: string;
+}
+
+// Create SES client (initialized lazily to ensure env vars are loaded)
+function getSESClient() {
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const region = process.env.AWS_SES_REGION || 'us-west-2';
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error('AWS credentials not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in your .env file');
+  }
+
+  return new SESClient({
+    region,
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+  });
+}
+
+export async function sendProjectInvitation({
+  to,
+  projectName,
+  inviterName,
+  inviteUrl,
+}: SendInvitationEmailParams) {
+  // Check if AWS credentials are configured
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    console.error('AWS credentials are not configured');
+    throw new Error('Email service is not configured. Please add AWS credentials to your environment variables.');
+  }
+
+  if (!process.env.AWS_SES_SENDER) {
+    console.error('AWS_SES_SENDER is not configured');
+    throw new Error('Email sender address is not configured.');
+  }
+
+  try {
+    console.log('Sending invitation email to:', to);
+    console.log('Project:', projectName);
+    console.log('Invite URL:', inviteUrl);
+    console.log('Using sender:', process.env.AWS_SES_SENDER);
+    console.log('AWS Region:', process.env.AWS_SES_REGION);
+    console.log('AWS Access Key ID (first 8 chars):', process.env.AWS_ACCESS_KEY_ID?.substring(0, 8) + '...');
+    console.log('AWS Secret Key configured:', !!process.env.AWS_SECRET_ACCESS_KEY);
+
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Project Invitation</h1>
+          </div>
+
+          <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              Hi there! 👋
+            </p>
+
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              <strong>${inviterName}</strong> has invited you to collaborate on the project
+              <strong style="color: #667eea;">"${projectName}"</strong> in Article Review Workspace.
+            </p>
+
+            <p style="font-size: 16px; margin-bottom: 30px;">
+              Click the button below to accept the invitation and start reviewing articles:
+            </p>
+
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${inviteUrl}"
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 14px 40px;
+                        text-decoration: none;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        font-size: 16px;
+                        display: inline-block;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                Accept Invitation
+              </a>
+            </div>
+
+            <p style="font-size: 14px; color: #6b7280; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              Or copy and paste this link into your browser:<br>
+              <a href="${inviteUrl}" style="color: #667eea; word-break: break-all;">${inviteUrl}</a>
+            </p>
+
+            <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+              This invitation will expire in 7 days.
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #9ca3af;">
+            <p>Article Review Workspace - Systematic Literature Review Platform</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textBody = `
+Project Invitation
+
+Hi there!
+
+${inviterName} has invited you to collaborate on the project "${projectName}" in Article Review Workspace.
+
+Accept your invitation by visiting this link:
+${inviteUrl}
+
+This invitation will expire in 7 days.
+
+---
+Article Review Workspace - Systematic Literature Review Platform
+    `;
+
+    const command = new SendEmailCommand({
+      Source: process.env.AWS_SES_SENDER,
+      Destination: {
+        ToAddresses: [to],
+      },
+      Message: {
+        Subject: {
+          Data: `You've been invited to join "${projectName}"`,
+          Charset: 'UTF-8',
+        },
+        Body: {
+          Html: {
+            Data: htmlBody,
+            Charset: 'UTF-8',
+          },
+          Text: {
+            Data: textBody,
+            Charset: 'UTF-8',
+          },
+        },
+      },
+    });
+
+    const sesClient = getSESClient();
+    const response = await sesClient.send(command);
+
+    console.log('Email sent successfully via AWS SES:', response.MessageId);
+    return { id: response.MessageId };
+  } catch (error: any) {
+    console.error('Error sending email via AWS SES:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      statusCode: error.statusCode,
+      name: error.name,
+    });
+
+    // Provide helpful error messages
+    if (error.code === 'MessageRejected') {
+      throw new Error('Email rejected. Please verify the sender email address is verified in AWS SES.');
+    } else if (error.code === 'InvalidParameterValue') {
+      throw new Error(`Invalid email parameter: ${error.message}`);
+    } else if (error.code === 'CredentialsError' || error.name === 'CredentialsProviderError') {
+      throw new Error('AWS credentials are invalid or expired.');
+    }
+
+    throw new Error(`Email service error: ${error.message || 'Unknown error occurred'}`);
+  }
+}
+
+// Test function to verify AWS SES is working
+export async function sendTestEmail(to: string) {
+  try {
+    const command = new SendEmailCommand({
+      Source: process.env.AWS_SES_SENDER!,
+      Destination: {
+        ToAddresses: [to],
+      },
+      Message: {
+        Subject: {
+          Data: 'Test Email from Article Review Workspace',
+          Charset: 'UTF-8',
+        },
+        Body: {
+          Html: {
+            Data: `
+              <h1>Email Configuration Test</h1>
+              <p>If you're reading this, your AWS SES integration is working correctly! ✅</p>
+              <p>You can now send project invitations.</p>
+              <p><strong>Sender:</strong> ${process.env.AWS_SES_SENDER}</p>
+              <p><strong>Region:</strong> ${process.env.AWS_SES_REGION}</p>
+            `,
+            Charset: 'UTF-8',
+          },
+          Text: {
+            Data: `Email Configuration Test\n\nIf you're reading this, your AWS SES integration is working correctly!\n\nYou can now send project invitations.\n\nSender: ${process.env.AWS_SES_SENDER}\nRegion: ${process.env.AWS_SES_REGION}`,
+            Charset: 'UTF-8',
+          },
+        },
+      },
+    });
+
+    const sesClient = getSESClient();
+    const response = await sesClient.send(command);
+    console.log('Test email sent successfully:', response.MessageId);
+
+    return { success: true, data: { id: response.MessageId } };
+  } catch (error: any) {
+    console.error('Test email failed:', error);
+    return { success: false, error: error.message };
+  }
+}
