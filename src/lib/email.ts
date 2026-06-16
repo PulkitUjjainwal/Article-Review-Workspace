@@ -1,6 +1,19 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { logger } from './logger';
 
+// Escape HTML special characters to prevent email template breaking
+function escapeHtml(text: string): string {
+  if (!text) return '';
+  const htmlEscapes: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return text.replace(/[&<>"']/g, (char) => htmlEscapes[char] || char);
+}
+
 export interface SendInvitationEmailParams {
   to: string;
   projectName: string;
@@ -84,8 +97,8 @@ export async function sendProjectInvitation({
             </p>
 
             <p style="font-size: 16px; margin-bottom: 20px;">
-              <strong>${inviterName}</strong> has invited you to collaborate on the project
-              <strong style="color: #667eea;">"${projectName}"</strong> in Article Review Workspace.
+              <strong>${escapeHtml(inviterName)}</strong> has invited you to collaborate on the project
+              <strong style="color: #667eea;">"${escapeHtml(projectName)}"</strong> in Article Review Workspace.
             </p>
 
             <p style="font-size: 16px; margin-bottom: 30px;">
@@ -226,7 +239,7 @@ export async function sendPasswordResetEmail({
 
           <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
             <p style="font-size: 16px; margin-bottom: 20px;">
-              ${userName ? `Hi ${userName},` : 'Hi there,'}
+              ${userName ? `Hi ${escapeHtml(userName)},` : 'Hi there,'}
             </p>
 
             <p style="font-size: 16px; margin-bottom: 20px;">
@@ -374,7 +387,7 @@ export async function sendEmailVerification({
 
           <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
             <p style="font-size: 16px; margin-bottom: 20px;">
-              ${userName ? `Hi ${userName},` : 'Hi there,'}
+              ${userName ? `Hi ${escapeHtml(userName)},` : 'Hi there,'}
             </p>
 
             <p style="font-size: 16px; margin-bottom: 20px;">

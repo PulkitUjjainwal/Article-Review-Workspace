@@ -16,13 +16,20 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
   const router = useRouter();
 
   const register = api.auth.register.useMutation({
     onSuccess: (data) => {
       setUserEmail(email);
+      setEmailSent(data.emailSent);
       setIsSuccess(true);
-      toast.success("Account created! Please check your email.");
+
+      if (data.emailSent) {
+        toast.success("Account created! Please check your email.");
+      } else {
+        toast.warning("Account created but email failed to send. You can resend it.");
+      }
     },
     onError: (error) => {
       toast.error(error.message);
@@ -51,29 +58,50 @@ export default function SignUpPage() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4">
         <div className="w-full max-w-md">
           <div className="rounded-2xl bg-white p-8 shadow-2xl">
-            {/* Success Icon */}
+            {/* Success/Warning Icon */}
             <div className="mb-6 flex justify-center">
-              <div className="rounded-full bg-green-100 p-4">
-                <svg className="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
-                </svg>
+              <div className={`rounded-full p-4 ${emailSent ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                {emailSent ? (
+                  <svg className="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                  </svg>
+                ) : (
+                  <svg className="h-12 w-12 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                )}
               </div>
             </div>
 
-            {/* Success Message */}
+            {/* Success/Warning Message */}
             <div className="text-center">
               <h1 className="mb-3 text-2xl font-bold text-gray-900">
-                Check Your Email
+                {emailSent ? "Check Your Email" : "Account Created"}
               </h1>
-              <p className="mb-6 text-gray-600">
-                We've sent a verification link to <strong>{userEmail}</strong>
-              </p>
-              <p className="mb-4 text-sm text-gray-500">
-                Please click the link in the email to verify your account and complete your registration.
-              </p>
-              <p className="mb-8 text-sm text-gray-500">
-                Didn't receive an email? Check your spam folder or request a new verification link.
-              </p>
+              {emailSent ? (
+                <>
+                  <p className="mb-6 text-gray-600">
+                    We've sent a verification link to <strong>{userEmail}</strong>
+                  </p>
+                  <p className="mb-4 text-sm text-gray-500">
+                    Please click the link in the email to verify your account and complete your registration.
+                  </p>
+                  <p className="mb-8 text-sm text-gray-500">
+                    Didn't receive an email? Check your spam folder or request a new verification link below.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mb-6 text-gray-600">
+                    Your account <strong>{userEmail}</strong> was created, but we couldn't send the verification email.
+                  </p>
+                  <div className="mb-6 rounded-lg bg-yellow-50 border border-yellow-200 p-4">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Email delivery failed.</strong> This might be due to email service issues. Please use the button below to resend the verification email.
+                    </p>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-3">
                 <Link href="/auth/resend-verification" className="block">

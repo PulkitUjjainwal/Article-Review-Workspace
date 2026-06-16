@@ -18,8 +18,12 @@ export const authRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Normalize email: trim and lowercase
+      const normalizedEmail = input.email.trim().toLowerCase();
+      const normalizedName = input.name.trim();
+
       // Validate email
-      const emailValidation = validateEmail(input.email);
+      const emailValidation = validateEmail(normalizedEmail);
       if (!emailValidation.valid) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -38,7 +42,7 @@ export const authRouter = createTRPCRouter({
 
       // Check if user already exists
       const existingUser = await ctx.db.user.findUnique({
-        where: { email: input.email },
+        where: { email: normalizedEmail },
       });
 
       if (existingUser) {
@@ -54,8 +58,8 @@ export const authRouter = createTRPCRouter({
       // Create user (email not verified yet)
       const user = await ctx.db.user.create({
         data: {
-          name: input.name,
-          email: input.email,
+          name: normalizedName,
+          email: normalizedEmail,
           password: hashedPassword,
           emailVerified: null, // Explicitly set to null (not verified)
         },
@@ -74,7 +78,7 @@ export const authRouter = createTRPCRouter({
       // Create email verification token
       await ctx.db.emailVerificationToken.create({
         data: {
-          email: input.email,
+          email: normalizedEmail,
           token,
           expires,
         },
@@ -88,23 +92,35 @@ export const authRouter = createTRPCRouter({
       logger.debug('[Email Verification] Verification URL:', verificationUrl);
 
       // Send verification email
+      let emailSent = false;
+      let emailError = null;
+
       try {
         await sendEmailVerification({
-          to: input.email,
+          to: normalizedEmail,
           verificationUrl,
-          userName: input.name,
+          userName: normalizedName,
         });
-      } catch (error) {
+        emailSent = true;
+        logger.info("Verification email sent successfully to:", normalizedEmail);
+      } catch (error: any) {
+        emailSent = false;
+        emailError = error.message || "Unknown error";
         console.error("Failed to send verification email:", error);
-        // Don't fail registration if email fails - user can resend
-        logger.error("Verification email failed but registration succeeded");
+        logger.error("Verification email failed but registration succeeded", {
+          email: normalizedEmail,
+          error: error.message,
+        });
       }
 
       return {
         success: true,
-        message: "Account created successfully! Please check your email to verify your account.",
+        message: emailSent
+          ? "Account created successfully! Please check your email to verify your account."
+          : "Account created! However, we couldn't send the verification email. Please use 'Resend verification' to try again.",
         user,
-        emailSent: true,
+        emailSent,
+        emailError: emailSent ? null : "Email delivery failed. You can resend the verification email from the sign-in page.",
       };
     }),
 
