@@ -5,7 +5,7 @@ A comprehensive systematic literature review platform for research teams to coll
 ## 🌟 Live Demo
 
 **Production:** https://article-review-workspace-ten.vercel.app/
-**Repository:** [\[Your GitHub URL\]](https://github.com/PulkitUjjainwal/Article-Review-Workspace)
+**Repository:** https://github.com/PulkitUjjainwal/Article-Review-Workspace
 
 ## ✨ Features
 
@@ -265,3 +265,4 @@ For questions or issues, please contact:
 ---
 
 **Built with ❤️ using Next.js, TypeScript, and modern web technologies.**
+
