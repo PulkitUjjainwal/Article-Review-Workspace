@@ -34,6 +34,14 @@ export interface SendEmailVerificationParams {
   userName?: string;
 }
 
+export interface SendOrganizationInvitationParams {
+  to: string;
+  organizationName: string;
+  inviterName: string;
+  inviteUrl: string;
+  hasAccount?: boolean;
+}
+
 // Create SES client (initialized lazily to ensure env vars are loaded)
 function getSESClient() {
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
@@ -185,6 +193,156 @@ Article Review Workspace - Systematic Literature Review Platform
     return { id: response.MessageId };
   } catch (error: any) {
     logger.error('Error sending invitation email via AWS SES:', error.message);
+    logger.debug('Error details:', {
+      message: error.message,
+      code: error.code,
+      statusCode: error.statusCode,
+      name: error.name,
+    });
+
+    // Provide helpful error messages
+    if (error.code === 'MessageRejected') {
+      throw new Error('Email rejected. Please verify the sender email address is verified in AWS SES.');
+    } else if (error.code === 'InvalidParameterValue') {
+      throw new Error(`Invalid email parameter: ${error.message}`);
+    } else if (error.code === 'CredentialsError' || error.name === 'CredentialsProviderError') {
+      throw new Error('AWS credentials are invalid or expired.');
+    }
+
+    throw new Error(`Email service error: ${error.message || 'Unknown error occurred'}`);
+  }
+}
+
+export async function sendOrganizationInvitation({
+  to,
+  organizationName,
+  inviterName,
+  inviteUrl,
+  hasAccount = false,
+}: SendOrganizationInvitationParams) {
+  // Check if AWS credentials are configured
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    console.error('AWS credentials are not configured');
+    throw new Error('Email service is not configured. Please add AWS credentials to your environment variables.');
+  }
+
+  if (!process.env.AWS_SES_SENDER) {
+    console.error('AWS_SES_SENDER is not configured');
+    throw new Error('Email sender address is not configured.');
+  }
+
+  try {
+    logger.debug('Sending organization invitation email to:', to);
+    logger.debug('Organization:', organizationName);
+    logger.debug('Invite URL:', inviteUrl);
+
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Organization Invitation</h1>
+          </div>
+
+          <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              Hi there! 👋
+            </p>
+
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              <strong>${escapeHtml(inviterName)}</strong> has invited you to join the organization
+              <strong>${escapeHtml(organizationName)}</strong> on Article Review Workspace.
+            </p>
+
+            ${!hasAccount ? `
+              <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+                <p style="margin: 0; font-size: 15px; color: #92400e;">
+                  <strong>📝 Note:</strong> You'll need to create an account first to accept this invitation.
+                </p>
+              </div>
+            ` : ''}
+
+            <div style="text-align: center; margin: 35px 0;">
+              <a href="${inviteUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                ${hasAccount ? 'Accept Invitation' : 'Create Account & Join'}
+              </a>
+            </div>
+
+            <p style="font-size: 14px; color: #6b7280; margin-top: 25px;">
+              Or copy and paste this link into your browser:
+            </p>
+            <p style="font-size: 13px; color: #3b82f6; word-break: break-all; background: #f3f4f6; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
+              ${inviteUrl}
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+            <p style="font-size: 13px; color: #6b7280; margin: 0;">
+              This invitation will expire in 7 days. If you didn't expect this invitation, you can safely ignore this email.
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
+            <p>Article Review Workspace - Systematic Review Platform</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textBody = `
+Organization Invitation
+
+Hi there!
+
+${inviterName} has invited you to join the organization "${organizationName}" on Article Review Workspace.
+
+${!hasAccount ? 'You\'ll need to create an account first to accept this invitation.\n\n' : ''}
+Click here to ${hasAccount ? 'accept the invitation' : 'create account and join'}:
+${inviteUrl}
+
+This invitation will expire in 7 days.
+
+If you didn't expect this invitation, you can safely ignore this email.
+
+---
+Article Review Workspace - Systematic Review Platform
+    `;
+
+    const sesClient = getSESClient();
+
+    const command = new SendEmailCommand({
+      Source: process.env.AWS_SES_SENDER,
+      Destination: {
+        ToAddresses: [to],
+      },
+      Message: {
+        Subject: {
+          Data: `You've been invited to join ${organizationName}`,
+          Charset: 'UTF-8',
+        },
+        Body: {
+          Html: {
+            Data: htmlBody,
+            Charset: 'UTF-8',
+          },
+          Text: {
+            Data: textBody,
+            Charset: 'UTF-8',
+          },
+        },
+      },
+    });
+
+    const response = await sesClient.send(command);
+    logger.debug('Email sent successfully. Message ID:', response.MessageId);
+
+    return response;
+  } catch (error: any) {
+    logger.error('Error sending organization invitation email via AWS SES:', error.message);
     logger.debug('Error details:', {
       message: error.message,
       code: error.code,

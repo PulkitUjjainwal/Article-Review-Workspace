@@ -56,7 +56,8 @@ model User {
   organizationMemberships OrganizationMember[]
   projectMemberships      ProjectMember[]
   reviewHistory           ReviewHistory[]
-  sentInvitations         ProjectInvitation[] @relation("InvitedBy")
+  sentInvitations         ProjectInvitation[]         @relation("InvitedBy")
+  sentOrgInvitations      OrganizationInvitation[]    @relation("OrgInvitedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -106,8 +107,9 @@ model Organization {
   slug        String   @unique
   description String?  @db.Text
 
-  members  OrganizationMember[]
-  projects Project[]
+  members     OrganizationMember[]
+  invitations OrganizationInvitation[]
+  projects    Project[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -182,6 +184,29 @@ model ProjectInvitation {
 
   @@unique([projectId, email])
   @@index([projectId])
+  @@index([token])
+  @@index([email])
+  @@index([invitedBy])
+}
+
+model OrganizationInvitation {
+  id             String     @id @default(cuid())
+  organizationId String
+  email          String
+  token          String     @unique
+  role           MemberRole @default(MEMBER)
+  expiresAt      DateTime
+
+  invitedBy     String
+  invitedByUser User?        @relation("OrgInvitedBy", fields: [invitedBy], references: [id], onDelete: Cascade)
+  acceptedAt    DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
   @@index([token])
   @@index([email])
   @@index([invitedBy])

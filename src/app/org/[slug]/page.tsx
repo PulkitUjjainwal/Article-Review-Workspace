@@ -45,6 +45,8 @@ export default function OrganizationPage() {
     return null;
   }
 
+  const canManageMembers = organization.userRole === "OWNER" || organization.userRole === "ADMIN";
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -78,6 +80,21 @@ export default function OrganizationPage() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Quick Actions */}
+        {canManageMembers && (
+          <div className="mb-8 flex gap-3">
+            <button
+              onClick={() => router.push(`/org/${slug}/members`)}
+              className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-sm transition-all"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              Manage Members
+            </button>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="mb-8 grid gap-6 sm:grid-cols-3">
           <div className="rounded-lg bg-white p-6 shadow-sm">
