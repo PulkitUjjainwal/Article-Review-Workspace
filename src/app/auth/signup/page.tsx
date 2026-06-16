@@ -14,12 +14,15 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
   const router = useRouter();
 
   const register = api.auth.register.useMutation({
-    onSuccess: () => {
-      toast.success("Account created successfully! Please sign in.");
-      router.push("/auth/signin");
+    onSuccess: (data) => {
+      setUserEmail(email);
+      setIsSuccess(true);
+      toast.success("Account created! Please check your email.");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -41,6 +44,55 @@ export default function SignUpPage() {
       password,
     });
   };
+
+  // Show success screen after registration
+  if (isSuccess) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4">
+        <div className="w-full max-w-md">
+          <div className="rounded-2xl bg-white p-8 shadow-2xl">
+            {/* Success Icon */}
+            <div className="mb-6 flex justify-center">
+              <div className="rounded-full bg-green-100 p-4">
+                <svg className="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Success Message */}
+            <div className="text-center">
+              <h1 className="mb-3 text-2xl font-bold text-gray-900">
+                Check Your Email
+              </h1>
+              <p className="mb-6 text-gray-600">
+                We've sent a verification link to <strong>{userEmail}</strong>
+              </p>
+              <p className="mb-4 text-sm text-gray-500">
+                Please click the link in the email to verify your account and complete your registration.
+              </p>
+              <p className="mb-8 text-sm text-gray-500">
+                Didn't receive an email? Check your spam folder or request a new verification link.
+              </p>
+
+              <div className="space-y-3">
+                <Link href="/auth/resend-verification" className="block">
+                  <Button variant="secondary" className="w-full">
+                    Resend Verification Email
+                  </Button>
+                </Link>
+                <Link href="/auth/signin" className="block">
+                  <Button variant="primary" className="w-full">
+                    Back to Sign In
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4">

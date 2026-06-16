@@ -85,6 +85,12 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
+          // Check if email is verified
+          if (!user.emailVerified) {
+            console.error("Email not verified");
+            return null;
+          }
+
           console.log("Authentication successful for user:", user.id);
 
           return {

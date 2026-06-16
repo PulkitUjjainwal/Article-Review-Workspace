@@ -13,6 +13,7 @@ const SignInForm = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmailNotVerified, setShowEmailNotVerified] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -20,6 +21,7 @@ const SignInForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setShowEmailNotVerified(false);
 
     try {
       const result = await signIn("credentials", {
@@ -32,7 +34,9 @@ const SignInForm = () => {
         toast.success("Welcome back!");
         router.push(callbackUrl);
       } else {
-        toast.error("Invalid email or password");
+        // Show email verification message - user might not have verified email
+        setShowEmailNotVerified(true);
+        toast.error("Invalid credentials or email not verified");
       }
     } catch (error) {
       console.error("Sign in error:", error);
@@ -62,6 +66,29 @@ const SignInForm = () => {
               Sign in to Article Review Workspace
             </p>
           </div>
+
+          {/* Email Not Verified Banner */}
+          {showEmailNotVerified && (
+            <div className="mb-4 rounded-lg bg-yellow-50 border border-yellow-200 p-4">
+              <div className="flex items-start">
+                <svg className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-yellow-800">
+                    Email not verified
+                  </p>
+                  <p className="mt-1 text-sm text-yellow-700">
+                    Please check your inbox and verify your email address.
+                    {" "}
+                    <Link href="/auth/resend-verification" className="font-semibold underline hover:text-yellow-900">
+                      Resend verification email
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">

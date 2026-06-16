@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { hashPassword, validatePassword, validateEmail } from "~/lib/auth";
-import { sendPasswordResetEmail } from "~/lib/email";
+import { sendPasswordResetEmail, sendEmailVerification } from "~/lib/email";
 import { getBaseUrl } from "~/lib/getBaseUrl";
 import { logger } from "~/lib/logger";
 import crypto from "crypto";
@@ -51,12 +51,13 @@ export const authRouter = createTRPCRouter({
       // Hash password
       const hashedPassword = await hashPassword(input.password);
 
-      // Create user
+      // Create user (email not verified yet)
       const user = await ctx.db.user.create({
         data: {
           name: input.name,
           email: input.email,
           password: hashedPassword,
+          emailVerified: null, // Explicitly set to null (not verified)
         },
         select: {
           id: true,
@@ -66,10 +67,44 @@ export const authRouter = createTRPCRouter({
         },
       });
 
+      // Generate email verification token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      // Create email verification token
+      await ctx.db.emailVerificationToken.create({
+        data: {
+          email: input.email,
+          token,
+          expires,
+        },
+      });
+
+      // Get base URL and construct verification URL
+      const baseUrl = getBaseUrl();
+      const verificationUrl = `${baseUrl}/auth/verify-email?token=${token}`;
+
+      logger.debug('[Email Verification] Base URL:', baseUrl);
+      logger.debug('[Email Verification] Verification URL:', verificationUrl);
+
+      // Send verification email
+      try {
+        await sendEmailVerification({
+          to: input.email,
+          verificationUrl,
+          userName: input.name,
+        });
+      } catch (error) {
+        console.error("Failed to send verification email:", error);
+        // Don't fail registration if email fails - user can resend
+        logger.error("Verification email failed but registration succeeded");
+      }
+
       return {
         success: true,
-        message: "Account created successfully! Please sign in.",
+        message: "Account created successfully! Please check your email to verify your account.",
         user,
+        emailSent: true,
       };
     }),
 
@@ -215,5 +250,144 @@ export const authRouter = createTRPCRouter({
       }
 
       return { valid: true, email: resetToken.email };
+    }),
+
+  // Verify email address
+  verifyEmail: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Find verification token
+      const verificationToken = await ctx.db.emailVerificationToken.findUnique({
+        where: { token: input.token },
+      });
+
+      if (!verificationToken) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid or expired verification token",
+        });
+      }
+
+      // Check if token has been used
+      if (verificationToken.used) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This verification link has already been used",
+        });
+      }
+
+      // Check if token is expired
+      if (verificationToken.expires < new Date()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This verification link has expired. Please request a new one.",
+        });
+      }
+
+      // Update user email verification status and mark token as used
+      await ctx.db.$transaction([
+        ctx.db.user.update({
+          where: { email: verificationToken.email },
+          data: { emailVerified: new Date() },
+        }),
+        ctx.db.emailVerificationToken.update({
+          where: { token: input.token },
+          data: { used: true },
+        }),
+      ]);
+
+      return {
+        success: true,
+        message: "Email verified successfully! You can now sign in.",
+      };
+    }),
+
+  // Resend verification email
+  resendVerificationEmail: publicProcedure
+    .input(z.object({ email: z.string().email() }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if user exists
+      const user = await ctx.db.user.findUnique({
+        where: { email: input.email },
+        select: { id: true, name: true, email: true, emailVerified: true },
+      });
+
+      if (!user) {
+        // Don't reveal if user exists (prevent email enumeration)
+        return {
+          success: true,
+          message: "If an account exists with this email, a verification link has been sent.",
+        };
+      }
+
+      // Check if already verified
+      if (user.emailVerified) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This email address is already verified.",
+        });
+      }
+
+      // Delete old unused tokens for this email
+      await ctx.db.emailVerificationToken.deleteMany({
+        where: {
+          email: input.email,
+          used: false,
+        },
+      });
+
+      // Generate new verification token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      // Create email verification token
+      await ctx.db.emailVerificationToken.create({
+        data: {
+          email: input.email,
+          token,
+          expires,
+        },
+      });
+
+      // Get base URL and construct verification URL
+      const baseUrl = getBaseUrl();
+      const verificationUrl = `${baseUrl}/auth/verify-email?token=${token}`;
+
+      logger.debug('[Resend Verification] Verification URL:', verificationUrl);
+
+      // Send verification email
+      try {
+        await sendEmailVerification({
+          to: input.email,
+          verificationUrl,
+          userName: user.name || undefined,
+        });
+      } catch (error) {
+        console.error("Failed to send verification email:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to send verification email. Please try again later.",
+        });
+      }
+
+      return {
+        success: true,
+        message: "Verification email has been sent. Please check your inbox.",
+      };
+    }),
+
+  // Check verification token validity
+  checkVerificationToken: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const verificationToken = await ctx.db.emailVerificationToken.findUnique({
+        where: { token: input.token },
+      });
+
+      if (!verificationToken || verificationToken.used || verificationToken.expires < new Date()) {
+        return { valid: false };
+      }
+
+      return { valid: true, email: verificationToken.email };
     }),
 });

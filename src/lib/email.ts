@@ -15,6 +15,12 @@ export interface SendPasswordResetEmailParams {
   userName?: string;
 }
 
+export interface SendEmailVerificationParams {
+  to: string;
+  verificationUrl: string;
+  userName?: string;
+}
+
 // Create SES client (initialized lazily to ensure env vars are loaded)
 function getSESClient() {
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
@@ -315,6 +321,154 @@ Article Review Workspace - Systematic Literature Review Platform
     return { id: response.MessageId };
   } catch (error: any) {
     logger.error('Error sending password reset email via AWS SES:', error.message);
+    logger.debug('Error details:', {
+      message: error.message,
+      code: error.code,
+      statusCode: error.statusCode,
+      name: error.name,
+    });
+
+    if (error.code === 'MessageRejected') {
+      throw new Error('Email rejected. Please verify the sender email address is verified in AWS SES.');
+    } else if (error.code === 'InvalidParameterValue') {
+      throw new Error(`Invalid email parameter: ${error.message}`);
+    } else if (error.code === 'CredentialsError' || error.name === 'CredentialsProviderError') {
+      throw new Error('AWS credentials are invalid or expired.');
+    }
+
+    throw new Error(`Email service error: ${error.message || 'Unknown error occurred'}`);
+  }
+}
+
+export async function sendEmailVerification({
+  to,
+  verificationUrl,
+  userName,
+}: SendEmailVerificationParams) {
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    console.error('AWS credentials are not configured');
+    throw new Error('Email service is not configured. Please add AWS credentials to your environment variables.');
+  }
+
+  if (!process.env.AWS_SES_SENDER) {
+    console.error('AWS_SES_SENDER is not configured');
+    throw new Error('Email sender address is not configured.');
+  }
+
+  try {
+    // Only log in development - contains sensitive URLs and email addresses
+    logger.debug('Sending email verification to:', to);
+    logger.debug('Verification URL:', verificationUrl);
+
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Verify Your Email</h1>
+          </div>
+
+          <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              ${userName ? `Hi ${userName},` : 'Hi there,'}
+            </p>
+
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              Thank you for signing up for Article Review Workspace! We're excited to have you on board.
+            </p>
+
+            <p style="font-size: 16px; margin-bottom: 30px;">
+              To complete your registration and start collaborating on research projects, please verify your email address by clicking the button below:
+            </p>
+
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${verificationUrl}"
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 14px 40px;
+                        text-decoration: none;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        font-size: 16px;
+                        display: inline-block;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                Verify Email Address
+              </a>
+            </div>
+
+            <p style="font-size: 14px; color: #6b7280; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              Or copy and paste this link into your browser:<br>
+              <a href="${verificationUrl}" style="color: #667eea; word-break: break-all;">${verificationUrl}</a>
+            </p>
+
+            <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+              This verification link will expire in 24 hours.
+            </p>
+
+            <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+              If you didn't create an account with Article Review Workspace, you can safely ignore this email.
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #9ca3af;">
+            <p>Article Review Workspace - Systematic Literature Review Platform</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textBody = `
+Verify Your Email
+
+${userName ? `Hi ${userName},` : 'Hi there,'}
+
+Thank you for signing up for Article Review Workspace! We're excited to have you on board.
+
+To complete your registration and start collaborating on research projects, please verify your email address by visiting this link:
+${verificationUrl}
+
+This verification link will expire in 24 hours.
+
+If you didn't create an account with Article Review Workspace, you can safely ignore this email.
+
+---
+Article Review Workspace - Systematic Literature Review Platform
+    `;
+
+    const command = new SendEmailCommand({
+      Source: process.env.AWS_SES_SENDER,
+      Destination: {
+        ToAddresses: [to],
+      },
+      Message: {
+        Subject: {
+          Data: 'Verify Your Email Address - Article Review Workspace',
+          Charset: 'UTF-8',
+        },
+        Body: {
+          Html: {
+            Data: htmlBody,
+            Charset: 'UTF-8',
+          },
+          Text: {
+            Data: textBody,
+            Charset: 'UTF-8',
+          },
+        },
+      },
+    });
+
+    const sesClient = getSESClient();
+    const response = await sesClient.send(command);
+
+    logger.info('Email verification sent successfully:', response.MessageId);
+    return { id: response.MessageId };
+  } catch (error: any) {
+    logger.error('Error sending email verification via AWS SES:', error.message);
     logger.debug('Error details:', {
       message: error.message,
       code: error.code,
