@@ -59,11 +59,14 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          console.log("Attempting to sign in with email:", credentials.email);
+          // Normalize email: trim and lowercase (must match registration)
+          const normalizedEmail = credentials.email.trim().toLowerCase();
+
+          console.log("Attempting to sign in with email:", normalizedEmail);
 
           // Find user by email
           const user = await db.user.findUnique({
-            where: { email: credentials.email },
+            where: { email: normalizedEmail },
           });
 
           if (!user) {

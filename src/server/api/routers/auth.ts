@@ -132,9 +132,12 @@ export const authRouter = createTRPCRouter({
   forgotPassword: publicProcedure
     .input(z.object({ email: z.string().email() }))
     .mutation(async ({ ctx, input }) => {
+      // Normalize email
+      const normalizedEmail = input.email.trim().toLowerCase();
+
       // Check if user exists
       const user = await ctx.db.user.findUnique({
-        where: { email: input.email },
+        where: { email: normalizedEmail },
         select: { id: true, name: true, email: true, password: true },
       });
 
@@ -150,7 +153,7 @@ export const authRouter = createTRPCRouter({
         // Create password reset token
         await ctx.db.passwordResetToken.create({
           data: {
-            email: input.email,
+            email: normalizedEmail,
             token,
             expires,
           },
@@ -167,7 +170,7 @@ export const authRouter = createTRPCRouter({
         // Send password reset email
         try {
           await sendPasswordResetEmail({
-            to: input.email,
+            to: normalizedEmail,
             resetUrl,
             userName: user.name || undefined,
           });
@@ -322,9 +325,12 @@ export const authRouter = createTRPCRouter({
   resendVerificationEmail: publicProcedure
     .input(z.object({ email: z.string().email() }))
     .mutation(async ({ ctx, input }) => {
+      // Normalize email
+      const normalizedEmail = input.email.trim().toLowerCase();
+
       // Check if user exists
       const user = await ctx.db.user.findUnique({
-        where: { email: input.email },
+        where: { email: normalizedEmail },
         select: { id: true, name: true, email: true, emailVerified: true },
       });
 
@@ -347,7 +353,7 @@ export const authRouter = createTRPCRouter({
       // Delete old unused tokens for this email
       await ctx.db.emailVerificationToken.deleteMany({
         where: {
-          email: input.email,
+          email: normalizedEmail,
           used: false,
         },
       });
@@ -359,7 +365,7 @@ export const authRouter = createTRPCRouter({
       // Create email verification token
       await ctx.db.emailVerificationToken.create({
         data: {
-          email: input.email,
+          email: normalizedEmail,
           token,
           expires,
         },
@@ -374,7 +380,7 @@ export const authRouter = createTRPCRouter({
       // Send verification email
       try {
         await sendEmailVerification({
-          to: input.email,
+          to: normalizedEmail,
           verificationUrl,
           userName: user.name || undefined,
         });
