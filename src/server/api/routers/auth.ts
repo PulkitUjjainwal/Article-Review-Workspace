@@ -412,4 +412,36 @@ export const authRouter = createTRPCRouter({
 
       return { valid: true, email: verificationToken.email };
     }),
+
+  // Check if account exists (for better UX on login page)
+  checkAccountExists: publicProcedure
+    .input(z.object({ email: z.string().email() }))
+    .query(async ({ ctx, input }) => {
+      // Normalize email
+      const normalizedEmail = input.email.trim().toLowerCase();
+
+      const user = await ctx.db.user.findUnique({
+        where: { email: normalizedEmail },
+        select: {
+          id: true,
+          emailVerified: true,
+        },
+      });
+
+      if (!user) {
+        return {
+          exists: false,
+          emailVerified: false,
+          message: "No account found with this email"
+        };
+      }
+
+      return {
+        exists: true,
+        emailVerified: !!user.emailVerified,
+        message: user.emailVerified
+          ? "Account exists and verified"
+          : "Account exists but email not verified"
+      };
+    }),
 });

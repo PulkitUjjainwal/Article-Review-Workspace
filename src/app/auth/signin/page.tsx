@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Input } from "~/components/ui/Input";
 import { Button } from "~/components/ui/Button";
 import { toast } from "~/components/ui/Toast";
+import { api } from "~/lib/api";
 
 const SignInForm = () => {
   const [email, setEmail] = useState("");
@@ -18,12 +19,33 @@ const SignInForm = () => {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
+  const checkAccountMutation = api.auth.checkAccountExists.useQuery(
+    { email: email.trim().toLowerCase() },
+    { enabled: false } // Don't run automatically
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setShowEmailNotVerified(false);
 
     try {
+      // First check if account exists
+      const accountCheck = await checkAccountMutation.refetch();
+
+      if (!accountCheck.data?.exists) {
+        // Account doesn't exist - redirect to signup
+        setIsLoading(false);
+        toast.error("No account found. Please create an account first.");
+
+        // Redirect to signup with email prefilled after 2 seconds
+        setTimeout(() => {
+          router.push(`/auth/signup?email=${encodeURIComponent(email)}`);
+        }, 2000);
+        return;
+      }
+
+      // Account exists - attempt login
       const result = await signIn("credentials", {
         email,
         password,
@@ -34,9 +56,13 @@ const SignInForm = () => {
         toast.success("Welcome back!");
         router.push(callbackUrl);
       } else {
-        // Show email verification message - user might not have verified email
-        setShowEmailNotVerified(true);
-        toast.error("Invalid credentials or email not verified");
+        // Login failed - check if email verified
+        if (accountCheck.data?.emailVerified === false) {
+          setShowEmailNotVerified(true);
+          toast.error("Please verify your email before signing in");
+        } else {
+          toast.error("Invalid password");
+        }
       }
     } catch (error) {
       console.error("Sign in error:", error);

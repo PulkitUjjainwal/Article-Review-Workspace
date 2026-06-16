@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "~/lib/api";
 import { Input } from "~/components/ui/Input";
 import { Button } from "~/components/ui/Button";
 import { toast } from "~/components/ui/Toast";
 
-export default function SignUpPage() {
+function SignUpForm() {
+  const searchParams = useSearchParams();
+  const emailFromUrl = searchParams.get("email");
+
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(emailFromUrl || "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -18,6 +21,13 @@ export default function SignUpPage() {
   const [userEmail, setUserEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const router = useRouter();
+
+  // Show message if redirected from login
+  useEffect(() => {
+    if (emailFromUrl) {
+      toast.info("No account found. Please create an account.");
+    }
+  }, [emailFromUrl]);
 
   const register = api.auth.register.useMutation({
     onSuccess: (data) => {
@@ -254,5 +264,17 @@ export default function SignUpPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    }>
+      <SignUpForm />
+    </Suspense>
   );
 }

@@ -315,10 +315,10 @@ export default function ProjectMembersPage() {
                           role: e.target.value as "ADMIN" | "MEMBER",
                         })
                       }
-                      className="rounded-lg border-2 border-gray-300 px-3 py-2 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      className="rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                     >
-                      <option value="ADMIN">Admin</option>
-                      <option value="MEMBER">Member</option>
+                      <option value="ADMIN" className="text-gray-900">Admin</option>
+                      <option value="MEMBER" className="text-gray-900">Member</option>
                     </select>
                   ) : (
                     <span
