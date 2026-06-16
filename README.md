@@ -1,374 +1,267 @@
 # Article Review Workspace
 
-> A production-ready systematic literature review (SLR) platform built with the T3 Stack.
+A comprehensive systematic literature review platform for research teams to collaborate on article screening and review processes.
 
-**✅ All 6 Phases Complete | Production-Ready | Type-Safe | WCAG AA Compliant**
+## 🌟 Live Demo
 
-🎉 **STATUS:** Production ready in 10-12 hours | 100% Complete | Professional Grade
+**Production:** https://article-review-workspace-ten.vercel.app/
+**Repository:** [\[Your GitHub URL\]](https://github.com/PulkitUjjainwal/Article-Review-Workspace)
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-7-2D3748)](https://www.prisma.io/)
-[![tRPC](https://img.shields.io/badge/tRPC-11-2596BE)](https://trpc.io/)
+## ✨ Features
 
----
+### Authentication & Authorization
+- 🔐 Secure user registration and login with NextAuth.js
+- 🔑 Password reset functionality via email
+- 👥 Role-based access control (Owner, Admin, Member)
+- 🛡️ Bcrypt password hashing and JWT sessions
 
-## 📸 Demo
+### Organization & Project Management
+- 🏢 Create and manage multiple organizations
+- 📁 Create projects within organizations
+- 📊 Project statistics and progress tracking
+- 📈 Visual charts for review status distribution
 
-**Live Demo:** [Coming Soon - Deploy to Vercel]
+### Team Collaboration
+- ✉️ Invite team members via email
+- 🎫 Token-based invitation system with expiration
+- 🔄 Accept/decline invitations from dashboard or email
+- 👤 Assign and manage member roles
 
-### Key Features in Action:
-- 🏢 Multi-tenant organization & project management
-- 📥 Excel/CSV import with intelligent validation
-- ✅ Three-state review workflow (Include/Exclude/Maybe)
-- 🔍 Advanced search and filtering (year, journal, author)
-- ⌨️ Keyboard shortcuts for rapid review (j/k/i/e/m)
-- 🚀 **Command Palette (Cmd+K)** - Quick access to all features
-- ↶ **Undo/Redo (Cmd+Z)** - Mistake-proof review workflow
-- 💬 **Article Preview Tooltips** - Quick info on hover
-- 👋 **Welcome Tour** - Interactive onboarding for new users
-- ❓ **Keyboard Help (?)** - Discoverable shortcuts reference
-- 📊 Real-time progress tracking with visual charts
-- 📄 Export reviewed articles to Excel
-- 🔒 Server-side authorization
-- ♿ Full accessibility support (ARIA, screen readers)
-- 🎯 Toast notifications for user feedback
-- 📄 Pagination for large datasets
+### Article Management
+- 📥 Import articles from Excel files (.xlsx, .xls, .csv)
+- 🔍 Advanced filtering (status, year, journal, author)
+- 🔢 Multi-column sorting and pagination
+- 📝 Individual and bulk review updates
+- 📜 Review history tracking
+- ⌨️ Keyboard shortcuts for efficient workflow
+- ⏪ Undo/redo functionality
+- 📤 Export to Excel and CSV
 
----
+### Email Integration
+- 📧 AWS SES integration for transactional emails
+- 💌 Professional HTML email templates
+- 🔔 Password reset notifications
+- 📬 Project invitation emails
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework:** Next.js 16.2.9 (App Router)
+- **Language:** TypeScript 5
+- **Styling:** Tailwind CSS 4
+- **UI Components:** Custom components with Tailwind
+- **State Management:** React Query (TanStack Query)
+- **Forms:** React Hook Form with Zod validation
+
+### Backend
+- **API:** tRPC for type-safe APIs
+- **Database:** PostgreSQL with Prisma ORM
+- **Authentication:** NextAuth.js with JWT strategy
+- **Email:** AWS SES (AWS SDK v3)
+- **Validation:** Zod schemas
+
+### DevOps & Tools
+- **Deployment:** Vercel (recommended)
+- **Database Hosting:** Neon PostgreSQL
+- **Version Control:** Git
+- **Package Manager:** npm
+- **Testing:** Jest with Testing Library
+
+## 📋 Prerequisites
+
+- Node.js 18+ and npm
+- PostgreSQL database (Neon recommended)
+- AWS account with SES configured
+- Git
 
 ## 🚀 Quick Start
 
-## 🏗️ Architecture Highlights
-
-### Tech Stack
-- **Framework**: Next.js 16 (App Router) - Latest features, Turbopack
-- **Language**: TypeScript 5 - 100% type coverage
-- **Styling**: Tailwind CSS 4 - Zero runtime CSS
-- **Database**: PostgreSQL via Prisma 7 - Type-safe ORM
-- **API**: tRPC 11 - End-to-end type safety
-- **Auth**: NextAuth.js - Secure session management
-- **State**: TanStack Query - Optimistic updates
-
-### Why This Stack?
-
-**Type Safety**: From database to UI, zero runtime type errors
-```typescript
-// ✅ Autocomplete + type checking everywhere
-const article = await api.article.getById.query({ articleId });
-//                  ^? Typed response
-```
-
-**Performance**: Server components + streaming for instant page loads
-
-**Developer Experience**: tRPC eliminates API boilerplate
-```typescript
-// No manual fetch, no endpoints, no OpenAPI
-const { data } = api.project.list.useQuery();
-```
-
-**Scalability**: Multi-tenant from day one, ready for millions of records
-
-## ✨ Features That Impress
-
-### 1. Smart Import System
-```
-✅ Drag & drop Excel/CSV files
-✅ Intelligent column mapping (handles 10+ header variations)
-✅ Real-time validation (PMID format, DOI format, year range)
-✅ Automatic deduplication (PMID + DOI)
-✅ Detailed error reporting with row numbers
-✅ Preview before import
-✅ Batch processing
-```
-
-**Sample:**
-- Upload 20 articles → 3 duplicates detected → 2 invalid PMIDs found → 15 imported
-- All errors shown with specific row numbers and reasons
-
-### 2. Multi-Tenant Architecture
-```
-Organization (Company/Lab)
-  └── Projects (Research Studies)
-      └── Articles (Papers to Review)
-          └── Review Decisions (Include/Exclude/Maybe)
-```
-
-- **Isolation**: Each organization's data completely separated
-- **Authorization**: Server-side enforcement at every level
-- **Scalability**: Ready for 1000s of organizations
-
-### 3. Collaborative Review Workflow
-```
-Import Articles → Search & Filter → Review → Track Progress → Export Results
-```
-
-**Features:**
-- Individual review (click ✓/✗/? buttons)
-- Bulk review (select multiple → apply decision)
-- Review notes (detailed reasoning)
-- History tracking (who reviewed what when)
-- Progress dashboard (X% complete)
-
-### 4. Advanced Data Management
-- **Search**: Title, authors, journal, PMID, DOI (debounced for performance)
-- **Filter**: By review status, year range, journal, author
-- **Pagination**: Handle 10,000+ articles smoothly (50 per page)
-- **Export**: Filtered results to Excel/CSV
-- **Statistics**: Visual charts showing review progress distribution
-
-### 5. Keyboard Shortcuts ⌨️
-Power users can review articles at lightning speed:
-
-| Key | Action |
-|-----|--------|
-| `j` | Next article |
-| `k` | Previous article |
-| `i` | Include focused article |
-| `e` | Exclude focused article |
-| `m` | Mark as maybe |
-| `space` | Toggle selection |
-| `enter` | Open detail modal |
-| `esc` | Clear selections / Close modal |
-
-**Visual feedback**: Focused row highlighted, smooth scrolling, keyboard hints in UI
+### 1. Clone the Repository
 
 ```bash
-# Clone and install
-git clone https://github.com/YOUR_USERNAME/article-review-workspace.git
+git clone https://github.com/yourusername/article-review-workspace.git
 cd article-review-workspace
-npm install
-
-# Set up database
-npm run db:push
-
-# Start development
-npm run dev
-
-# Open http://localhost:3000
 ```
 
-**That's it!** 🎉 No complex setup, no Docker required, no environment configuration hassles.
-
-## Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run db:push` - Push schema changes to database
-- `npm run db:studio` - Open Prisma Studio (database GUI)
-- `npm run db:generate` - Regenerate Prisma Client
-
-## Project Structure
-
-```
-src/
-├── app/                    # Next.js App Router pages
-│   ├── api/               # API routes
-│   │   ├── auth/         # NextAuth endpoints
-│   │   └── trpc/         # tRPC endpoints
-│   ├── layout.tsx         # Root layout
-│   ├── page.tsx           # Home page
-│   └── providers.tsx      # React Query & tRPC providers
-├── server/                 # Backend code
-│   ├── api/
-│   │   ├── routers/       # tRPC routers (to be added)
-│   │   ├── root.ts        # Root router
-│   │   └── trpc.ts        # tRPC config & middleware
-│   ├── auth.ts            # NextAuth configuration
-│   └── db.ts              # Prisma client singleton
-└── lib/                    # Utilities
-    └── api.ts             # tRPC React client
-
-prisma/
-├── schema.prisma          # Database schema
-└── migrations/            # Database migrations
-```
-
-## 💎 Code Quality Highlights
-
-### TypeScript Excellence
-```typescript
-// ✅ Zero `any` types
-// ✅ Strict mode enabled
-// ✅ Full inference
-// ✅ Discriminated unions for review states
-
-type ReviewDecision = "PENDING" | "INCLUDE" | "EXCLUDE" | "MAYBE";
-```
-
-### Clean Architecture
-```
-src/
-├── app/           # Next.js routes (presentation)
-├── server/        # Business logic (isolated)
-│   ├── api/       # tRPC routers
-│   └── services/  # Reusable services
-├── components/    # React components
-└── lib/           # Pure utilities
-```
-
-### Best Practices
-- ✅ Server-side validation (Zod schemas)
-- ✅ Error boundaries & loading states
-- ✅ Optimistic updates with React Query
-- ✅ Proper error handling with toast notifications
-- ✅ Accessibility (ARIA labels, keyboard shortcuts, focus management, screen reader support)
-- ✅ Responsive design (mobile-first)
-- ✅ Security (CSRF protection, XSS prevention, server-side auth)
-- ✅ Performance (debounced search, memoized components, pagination)
-- ✅ User feedback (toast notifications, loading states, visual indicators)
-
-### Performance
-- 🚀 Lighthouse Score: 95+ (Performance)
-- 🚀 First Contentful Paint: <1s
-- 🚀 Time to Interactive: <2s
-- 🚀 Zero layout shift
-
-## 🚢 Deployment
-
-**One command deployment to Vercel + Neon:**
+### 2. Install Dependencies
 
 ```bash
-# 1. Push to GitHub
-git push origin main
-
-# 2. Connect to Vercel (one-time)
-# Visit vercel.com → Import project
-
-# 3. Add environment variables
-# DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL
-
-# 4. Deploy
-# Automatic on every git push
+npm install
 ```
 
-**Free Tier Limits:**
-- Vercel: Unlimited personal projects
-- Neon: 512 MB storage, 3 GB transfer/month
-- **Cost: $0/month for demo**
+### 3. Set Up Environment Variables
 
-See `DEPLOYMENT.md` for complete guide.
-
-## 📊 Project Stats
-
-- **Lines of Code**: ~4,200
-- **Components**: 20+ (including memoized components)
-- **API Endpoints**: 12 tRPC procedures
-- **Database Models**: 9 tables
-- **Development Time**: 8-10 hours
-- **Test Coverage**: Manual (all features tested)
-- **Build Time**: ~5 seconds (Turbopack)
-- **Keyboard Shortcuts**: 8 commands
-- **Accessibility Score**: WCAG 2.1 AA compliant
-
-## 🎯 What Makes This Special
-
-### For Recruiters & Hiring Managers
-
-**1. Modern Stack Mastery**
-- Demonstrates latest Next.js 16 features
-- Production-grade TypeScript
-- Full-stack understanding (DB → UI)
-
-**2. Product Thinking**
-- Not just code - solved real problem
-- User flow design
-- Error handling & edge cases
-- Data validation & deduplication
-
-**3. Production Ready**
-- Actually deployable (not just a tutorial)
-- Security considered
-- Performance optimized
-- Scalability built-in
-
-**4. Clean Code**
-- No tech debt
-- Well-organized
-- Reusable components
-- Proper abstractions
-
-**5. Documentation**
-- Comprehensive README
-- Deployment guide
-- Code comments
-- Type definitions
-
-### Technical Challenges Solved
-
-✅ **File Upload & Parsing**: Handle various Excel formats, clean data
-✅ **Deduplication Logic**: PMID + DOI with case-insensitive matching
-✅ **Multi-Tenant Auth**: Secure isolation between organizations
-✅ **Real-time Updates**: Optimistic UI with React Query
-✅ **Type Safety**: End-to-end without code generation
-✅ **Complex Filters**: Search + filter + pagination combined
-✅ **Performance Optimization**: Debouncing, memoization, lazy loading
-✅ **Accessibility**: Full keyboard navigation, ARIA labels, focus management
-✅ **User Experience**: Toast notifications, visual feedback, loading states
-
-## Database Schema
-
-Key models:
-- **User**: Authentication and profile
-- **Organization**: Top-level tenant
-- **Project**: Article collection within organization
-- **Article**: Research paper with metadata
-- **ReviewHistory**: Audit trail of review decisions
-
-See `prisma/schema.prisma` for complete schema.
-
-## Environment Variables
+Create a `.env` file in the root directory:
 
 ```env
-# Database
-DATABASE_URL="prisma+postgres://..."  # Managed by Prisma
+# Database (PostgreSQL)
+DATABASE_URL="postgresql://user:password@host:port/database?sslmode=require"
 
-# NextAuth
-NEXTAUTH_SECRET="your-secret-here"    # Generate: openssl rand -base64 32
-NEXTAUTH_URL="http://localhost:3000"
+# NextAuth.js
+NEXTAUTH_SECRET="your-secret-here"  # Generate with: openssl rand -base64 32
+NEXTAUTH_URL="http://localhost:3000"  # Auto-detected in production
 
-# OAuth (optional)
-# GITHUB_ID=""
-# GITHUB_SECRET=""
+# AWS SES (Email Service)
+AWS_ACCESS_KEY_ID="your-aws-access-key"
+AWS_SECRET_ACCESS_KEY="your-aws-secret-key"
+AWS_SES_REGION="us-west-2"
+AWS_SES_SENDER="noreply@yourdomain.com"  # Must be verified in AWS SES
 ```
 
-## Deployment
+### 4. Set Up the Database
 
-### Recommended: Vercel + Neon
+```bash
+# Generate Prisma client
+npx prisma generate
 
-1. **Database**: Create free Neon PostgreSQL database
-   - Sign up at [neon.tech](https://neon.tech)
-   - Copy connection string
+# Run migrations
+npx prisma migrate deploy
 
-2. **Frontend**: Deploy to Vercel
-   - Connect GitHub repo at [vercel.com](https://vercel.com)
-   - Add environment variables
-   - Deploy
+# (Optional) Seed database with sample data
+npx prisma db seed
+```
 
-See `PROJECT_DOCUMENTATION.md` for detailed deployment guide.
+### 5. Start Development Server
 
-## 📚 Complete Documentation
+```bash
+npm run dev
+```
 
-### Quick Links
-- **[FINAL_COMPLETION_REPORT.md](./FINAL_COMPLETION_REPORT.md)** - ⭐ **START HERE** - Complete project verification & status
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Step-by-step deployment to Vercel + Neon
-- **[TESTING_CHECKLIST.md](./TESTING_CHECKLIST.md)** - 200+ test items for quality assurance
+Visit `http://localhost:3000` to see your application!
 
-### Phase Documentation
-- **[PHASE5_IMPROVEMENTS.md](./PHASE5_IMPROVEMENTS.md)** - Keyboard shortcuts, accessibility, performance
-- **[PHASE6_COMPLETE.md](./PHASE6_COMPLETE.md)** - Error handling, loading states, production readiness
-- **[UI_IMPROVEMENTS.md](./UI_IMPROVEMENTS.md)** - Text input visibility and accessibility
+## 📦 Build & Deploy
 
-### Development Notes
-- **[CLAUDE.md](./CLAUDE.md)** - Project memory and development context
-- **[.env.example](./.env.example)** - Environment variable template
+### Production Build
 
-## License
+```bash
+npm run build
+npm start
+```
 
-MIT
+### Deploy to Vercel
 
-## Contributing
+1. Push code to GitHub
+2. Import project in Vercel
+3. Add environment variables
+4. Deploy!
 
-This is an educational project for a software engineering assignment.
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed instructions.
+
+## 📖 Usage Guide
+
+### Creating Your First Project
+
+1. **Sign Up:** Create an account at `/auth/signup`
+2. **Create Organization:** From dashboard, click "Create Organization"
+3. **Create Project:** Within organization, click "New Project"
+4. **Invite Team:** Go to project members, invite collaborators
+5. **Import Articles:** Upload Excel file with article data
+6. **Review Articles:** Screen articles with filtering and sorting
+7. **Export Results:** Download reviewed articles as Excel/CSV
+
+### Keyboard Shortcuts
+
+- `j` / `k` - Navigate down/up through articles
+- `i` - Mark as Include
+- `e` - Mark as Exclude
+- `m` - Mark as Maybe
+- `Space` - Select/deselect article
+- `Enter` - Open article details
+- `Cmd/Ctrl + Z` - Undo last action
+- `Cmd/Ctrl + Shift + Z` - Redo action
+
+## 🔒 Security Features
+
+- ✅ Password hashing with bcryptjs (10 rounds)
+- ✅ Password strength validation
+- ✅ Email format validation
+- ✅ Secure token generation (crypto.randomBytes)
+- ✅ Role-based authorization
+- ✅ SQL injection protection (Prisma ORM)
+- ✅ XSS protection (React auto-escaping)
+- ✅ CSRF protection (NextAuth.js)
+- ✅ Environment-aware logging
+
+## 📊 Database Schema
+
+The application uses 13 database models:
+
+- **Authentication:** User, Account, Session, VerificationToken, PasswordResetToken
+- **Organizations:** Organization, OrganizationMember
+- **Projects:** Project, ProjectMember, ProjectInvitation
+- **Articles:** Article, ReviewHistory
+
+See [prisma/schema.prisma](./prisma/schema.prisma) for full schema.
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+## 📝 Project Structure
+
+```
+article-review-workspace/
+├── prisma/
+│   ├── schema.prisma          # Database schema
+│   └── migrations/            # Database migrations
+├── src/
+│   ├── app/                   # Next.js App Router pages
+│   │   ├── auth/             # Authentication pages
+│   │   ├── dashboard/        # Dashboard
+│   │   ├── org/              # Organization pages
+│   │   ├── project/          # Project pages
+│   │   └── invite/           # Invitation pages
+│   ├── components/           # React components
+│   │   └── ui/              # UI components
+│   ├── hooks/               # Custom React hooks
+│   ├── lib/                 # Utility functions
+│   ├── server/              # Server-side code
+│   │   ├── api/            # tRPC API routes
+│   │   └── auth.ts         # Authentication config
+│   └── __tests__/          # Test files
+├── public/                  # Static assets
+├── .env.example            # Environment variables template
+├── package.json            # Dependencies
+└── README.md              # This file
+```
+
+## 🤝 Contributing
+
+This is an assignment project, but suggestions are welcome!
+
+## 📄 License
+
+This project is created for educational/assignment purposes.
+
+## 👨‍💻 Author
+
+**[Your Name]**
+- Email: [your.email@example.com]
+- LinkedIn: [Your LinkedIn URL]
+- Portfolio: [Your Portfolio URL]
+
+## 🙏 Acknowledgments
+
+- Next.js team for the amazing framework
+- Vercel for hosting platform
+- Prisma for the excellent ORM
+- tRPC for type-safe APIs
+
+## 📞 Support
+
+For questions or issues, please contact:
+- Email: [your.email@example.com]
+- GitHub Issues: [Repository Issues URL]
+
+---
+
+**Built with ❤️ using Next.js, TypeScript, and modern web technologies.**
