@@ -1,4 +1,5 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { logger } from './logger';
 
 export interface SendInvitationEmailParams {
   to: string;
@@ -52,13 +53,12 @@ export async function sendProjectInvitation({
   }
 
   try {
-    console.log('Sending invitation email to:', to);
-    console.log('Project:', projectName);
-    console.log('Invite URL:', inviteUrl);
-    console.log('Using sender:', process.env.AWS_SES_SENDER);
-    console.log('AWS Region:', process.env.AWS_SES_REGION);
-    console.log('AWS Access Key ID (first 8 chars):', process.env.AWS_ACCESS_KEY_ID?.substring(0, 8) + '...');
-    console.log('AWS Secret Key configured:', !!process.env.AWS_SECRET_ACCESS_KEY);
+    // Only log in development - contains sensitive URLs and email addresses
+    logger.debug('Sending invitation email to:', to);
+    logger.debug('Project:', projectName);
+    logger.debug('Invite URL:', inviteUrl);
+    logger.debug('Using sender:', process.env.AWS_SES_SENDER);
+    logger.debug('AWS Region:', process.env.AWS_SES_REGION);
 
     const htmlBody = `
       <!DOCTYPE html>
@@ -162,11 +162,11 @@ Article Review Workspace - Systematic Literature Review Platform
     const sesClient = getSESClient();
     const response = await sesClient.send(command);
 
-    console.log('Email sent successfully via AWS SES:', response.MessageId);
+    logger.info('Invitation email sent successfully:', response.MessageId);
     return { id: response.MessageId };
   } catch (error: any) {
-    console.error('Error sending email via AWS SES:', error);
-    console.error('Error details:', {
+    logger.error('Error sending invitation email via AWS SES:', error.message);
+    logger.debug('Error details:', {
       message: error.message,
       code: error.code,
       statusCode: error.statusCode,
@@ -202,8 +202,9 @@ export async function sendPasswordResetEmail({
   }
 
   try {
-    console.log('Sending password reset email to:', to);
-    console.log('Reset URL:', resetUrl);
+    // Only log in development - contains sensitive URLs and email addresses
+    logger.debug('Sending password reset email to:', to);
+    logger.debug('Reset URL:', resetUrl);
 
     const htmlBody = `
       <!DOCTYPE html>
@@ -310,11 +311,11 @@ Article Review Workspace - Systematic Literature Review Platform
     const sesClient = getSESClient();
     const response = await sesClient.send(command);
 
-    console.log('Password reset email sent successfully via AWS SES:', response.MessageId);
+    logger.info('Password reset email sent successfully:', response.MessageId);
     return { id: response.MessageId };
   } catch (error: any) {
-    console.error('Error sending password reset email via AWS SES:', error);
-    console.error('Error details:', {
+    logger.error('Error sending password reset email via AWS SES:', error.message);
+    logger.debug('Error details:', {
       message: error.message,
       code: error.code,
       statusCode: error.statusCode,
@@ -367,11 +368,11 @@ export async function sendTestEmail(to: string) {
 
     const sesClient = getSESClient();
     const response = await sesClient.send(command);
-    console.log('Test email sent successfully:', response.MessageId);
+    logger.info('Test email sent successfully:', response.MessageId);
 
     return { success: true, data: { id: response.MessageId } };
   } catch (error: any) {
-    console.error('Test email failed:', error);
+    logger.error('Test email failed:', error.message);
     return { success: false, error: error.message };
   }
 }

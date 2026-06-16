@@ -3,6 +3,7 @@ import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { sendProjectInvitation } from "~/lib/email";
 import { getBaseUrl } from "~/lib/getBaseUrl";
+import { logger } from "~/lib/logger";
 import crypto from "crypto";
 
 export const memberRouter = createTRPCRouter({
@@ -182,9 +183,10 @@ export const memberRouter = createTRPCRouter({
       // Send invitation email
       const baseUrl = getBaseUrl();
       const inviteUrl = `${baseUrl}/invite/${token}`;
-      console.log('[Invitation] Base URL:', baseUrl);
-      console.log('[Invitation] Full invite URL:', inviteUrl);
-      console.log('[Invitation] User has account:', !!invitedUser);
+      // Only log in development - contains sensitive URLs
+      logger.debug('[Invitation] Base URL:', baseUrl);
+      logger.debug('[Invitation] Full invite URL:', inviteUrl);
+      logger.debug('[Invitation] User has account:', !!invitedUser);
 
       // Always send email, but message differs based on whether user exists
       try {
@@ -198,7 +200,7 @@ export const memberRouter = createTRPCRouter({
       } catch (error) {
         // If email fails but user has account, that's OK - they'll see it in dashboard
         if (invitedUser) {
-          console.warn('[Invitation] Email failed but user has account, will see in dashboard');
+          logger.warn('[Invitation] Email failed but user has account, will see in dashboard');
           return {
             success: true,
             invitation,
@@ -525,8 +527,9 @@ export const memberRouter = createTRPCRouter({
       // Generate new invitation URL
       const baseUrl = getBaseUrl();
       const inviteUrl = `${baseUrl}/invite/${invitation.token}`;
-      console.log('[Resend Invitation] Base URL:', baseUrl);
-      console.log('[Resend Invitation] Invite URL:', inviteUrl);
+      // Only log in development - contains sensitive URLs
+      logger.debug('[Resend Invitation] Base URL:', baseUrl);
+      logger.debug('[Resend Invitation] Invite URL:', inviteUrl);
 
       // Send email
       try {

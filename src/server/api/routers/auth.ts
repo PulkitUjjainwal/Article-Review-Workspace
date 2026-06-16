@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { hashPassword, validatePassword, validateEmail } from "~/lib/auth";
 import { sendPasswordResetEmail } from "~/lib/email";
 import { getBaseUrl } from "~/lib/getBaseUrl";
+import { logger } from "~/lib/logger";
 import crypto from "crypto";
 
 export const authRouter = createTRPCRouter({
@@ -72,17 +73,9 @@ export const authRouter = createTRPCRouter({
       };
     }),
 
-  // Check if email exists
-  checkEmail: publicProcedure
-    .input(z.object({ email: z.string().email() }))
-    .query(async ({ ctx, input }) => {
-      const user = await ctx.db.user.findUnique({
-        where: { email: input.email },
-        select: { id: true },
-      });
-
-      return { exists: !!user };
-    }),
+  // REMOVED: checkEmail endpoint - was a security vulnerability (email enumeration)
+  // If you need this functionality, implement it on the client side during registration
+  // and handle the "email already exists" error from the register mutation
 
   // Request password reset
   forgotPassword: publicProcedure
@@ -116,8 +109,9 @@ export const authRouter = createTRPCRouter({
         const baseUrl = getBaseUrl();
         const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
 
-        console.log('[Password Reset] Base URL:', baseUrl);
-        console.log('[Password Reset] Reset URL:', resetUrl);
+        // Only log in development - sensitive URLs
+        logger.debug('[Password Reset] Base URL:', baseUrl);
+        logger.debug('[Password Reset] Reset URL:', resetUrl);
 
         // Send password reset email
         try {
