@@ -286,8 +286,11 @@ export const memberRouter = createTRPCRouter({
         });
       }
 
-      // Check if user's email matches invitation
-      if (ctx.session.user.email !== invitation.email) {
+      // Check if user's email matches invitation (normalize both for comparison)
+      const normalizedSessionEmail = ctx.session.user.email?.trim().toLowerCase();
+      const normalizedInvitationEmail = invitation.email.trim().toLowerCase();
+
+      if (normalizedSessionEmail !== normalizedInvitationEmail) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "This invitation was sent to a different email address",

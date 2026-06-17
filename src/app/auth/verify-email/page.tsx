@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "~/components/ui/Button";
@@ -9,6 +9,7 @@ import { api } from "~/lib/api";
 
 const VerifyEmailForm = () => {
   const [isSuccess, setIsSuccess] = useState(false);
+  const hasAttemptedVerification = useRef(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -28,12 +29,20 @@ const VerifyEmailForm = () => {
     },
   });
 
-  // Auto-verify when component mounts with valid token
+  // Auto-verify when component mounts with valid token (only once)
   useEffect(() => {
-    if (token && checkTokenQuery.data?.valid && !verifyEmailMutation.isPending && !isSuccess) {
+    if (
+      token &&
+      checkTokenQuery.data?.valid &&
+      !hasAttemptedVerification.current &&
+      !verifyEmailMutation.isPending &&
+      !verifyEmailMutation.isSuccess &&
+      !isSuccess
+    ) {
+      hasAttemptedVerification.current = true;
       verifyEmailMutation.mutate({ token });
     }
-  }, [token, checkTokenQuery.data?.valid]);
+  }, [token, checkTokenQuery.data?.valid, verifyEmailMutation.isPending, verifyEmailMutation.isSuccess]);
 
   // Show error if token is invalid
   if (!token || (checkTokenQuery.data && !checkTokenQuery.data.valid)) {
